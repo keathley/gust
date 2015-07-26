@@ -8,6 +8,18 @@ var can = document.getElementById('viewport')
   // , ch  = can.height = can.offsetHeight * devicePixelRatio
   , ctx = can.getContext('2d')
 
+var str = 0;
+
+function calculateNewStrength( data ) {
+  var newStr = 0;
+  for (var i = 0; i < 5; i++)
+    newStr += data[i]
+
+  newStr = (newStr*0.00001)*(-1)
+
+  return newStr
+}
+
 // ctx.scale( devicePixelRatio, devicePixelRatio )
 
 function gotStream(stream) {
@@ -25,33 +37,33 @@ function gotStream(stream) {
   dataArray = new Uint8Array( bufferLength )
   // analyser.getByteTimeDomainData( dataArray )
 
-  ctx.clearRect(0, 0, cw, ch)
+  // ctx.clearRect(0, 0, cw, ch)
 
-  draw();
+  // draw();
 }
 
-function draw() {
-  drawVisual = requestAnimationFrame( draw )
-
-  analyser.getByteFrequencyData( dataArray )
-
-  ctx.fillStyle = 'rgb(0, 0, 0)'
-  ctx.fillRect(0, 0, cw, ch)
-
-  var barWidth = (cw / bufferLength) * 2.5
-    , barHeight;
-
-  var x = 0;
-
-  for(var i = 0; i < bufferLength; i++) {
-    barHeight = dataArray[i];
-
-    ctx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)'
-    ctx.fillRect( x, ch - barHeight/2, barWidth, barHeight/2 )
-
-    x += barWidth + 1
-  }
-}
+// function draw() {
+//   drawVisual = requestAnimationFrame( draw )
+//
+//   analyser.getByteFrequencyData( dataArray )
+//
+//   ctx.fillStyle = 'rgb(0, 0, 0)'
+//   ctx.fillRect(0, 0, cw, ch)
+//
+//   var barWidth = (cw / bufferLength) * 2.5
+//     , barHeight;
+//
+//   var x = 0;
+//
+//   for(var i = 0; i < bufferLength; i++) {
+//     barHeight = dataArray[i];
+//
+//     ctx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)'
+//     ctx.fillRect( x, ch - barHeight/2, barWidth, barHeight/2 )
+//
+//     x += barWidth + 1
+//   }
+// }
 
 function handleStreamError(args) {
   console.error("Error Getting Stream", args);
@@ -246,15 +258,14 @@ Physics(function (world) {
       },
       behave: function( data ){
         var bodies = data.bodies
-        ,scratch = Physics.scratchpad()
-        ,dir = scratch.vector()
-        ,tmp = scratch.vector()
-        ,filter = this.filterType
-        ,body
-        ,mul = this.jitter * Math.PI * 2
-        ,r = this.radius * this.strength
-        ,cutoff = this.ground - 20
-        ;
+          , scratch = Physics.scratchpad()
+          , dir = scratch.vector()
+          , tmp = scratch.vector()
+          , filter = this.filterType
+          , body
+          , mul = this.jitter * Math.PI * 2
+          , r = this.radius * this.strength
+          , cutoff = this.ground - 20
 
         for (var i = 0, l = bodies.length; i < l; i++){
           body = bodies[ i ];
@@ -282,23 +293,35 @@ Physics(function (world) {
     };
   });
 
+
+  var aPos = { x: 0, y: 500 }
+  var attractors = [
+    Physics.behavior('attractor', { order: 0, strength: -0.0002, pos: aPos }),
+    Physics.behavior('attractor', { order: 0, strength: -0.0004, pos: aPos }),
+    Physics.behavior('attractor', { order: 0, strength: -0.0006, pos: aPos }),
+    Physics.behavior('attractor', { order: 0, strength: -0.0008, pos: aPos }),
+    Physics.behavior('attractor', { order: 0, strength: -0.0010, pos: aPos }),
+  ]
+
   // add some fun interaction
-  var attractor = Physics.behavior('attractor', {
-    order: 0,
-    strength: 0.002
-  });
+  // var attractor = Physics.behavior('attractor', {
+  //   order: 0,
+  //   strength: str,
+  //   pos: { x: 0, y: 500 }
+  // });
   world.on({
     'interact:poke': function( pos ){
       world.wakeUpAll();
-      attractor.position( pos );
-      world.add( attractor );
+      // attractor.position( pos );
+      // console.log(pos);
+      // world.add( attractor );
     }
     ,'interact:move': function( pos ){
-      attractor.position( pos );
+      // attractor.position( pos );
     }
     ,'interact:release': function(){
       world.wakeUpAll();
-      world.remove( attractor );
+      // world.remove( attractor );
     }
   });
 
@@ -314,6 +337,18 @@ Physics(function (world) {
 
   // subscribe to ticker to advance the simulation
   Physics.util.ticker.on(function( time ) {
+    if (analyser)
+      analyser.getByteFrequencyData( dataArray )
+
+    if ( dataArray ) {
+      for (var i = 0; i < attractors.length; i++) {
+        if ( dataArray[i] > 200 )
+          world.add( attractors[i] )
+        else
+          world.remove( attractors[i] )
+      }
+    }
+
     world.step( time );
   });
 });
